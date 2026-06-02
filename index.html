@@ -1,0 +1,2699 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Invasión Bovina - Alien Cow Abduction</title>
+    <!-- Tailwind CSS para el diseño de la interfaz de usuario -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Iconos Phosphor para botones de control y UI -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Google Fonts: Inter y Press Start 2P para estética arcade -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <!-- SDK de Solana Web3.js -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020205;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .font-arcade {
+            font-family: 'Press Start 2P', monospace;
+        }
+        /* Efectos de neón personalizados */
+        .neon-glow-pink {
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.6), inset 0 0 10px rgba(236, 72, 153, 0.4);
+            text-shadow: 0 0 8px rgba(236, 72, 153, 0.8);
+        }
+        .neon-glow-green {
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.6), inset 0 0 10px rgba(34, 197, 94, 0.4);
+            text-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+        }
+        .neon-glow-red {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+            text-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+        }
+        .neon-glow-blue {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.6), inset 0 0 10px rgba(6, 182, 212, 0.4);
+            text-shadow: 0 0 8px rgba(6, 182, 212, 0.8);
+        }
+        .scanlines::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 30;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0); }
+            10%, 30%, 50%, 70%, 90% { transform: translate(-3px, 3px); }
+            20%, 40%, 60%, 80% { transform: translate(3px, -3px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+        @keyframes spin-slow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 8s linear infinite;
+        }
+        /* Pestañas de menú activas */
+        .tab-btn.active {
+            border-color: #ec4899;
+            color: #ec4899;
+            background: rgba(236, 72, 153, 0.1);
+        }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col justify-between h-screen w-screen text-white select-none relative scanlines">
+
+    <!-- Capa de Fondo Estelar de Espacio Profundo -->
+    <div class="absolute inset-0 bg-gradient-to-b from-[#020205] via-[#090915] to-[#12081f] z-0"></div>
+
+    <header class="relative z-10 w-full p-4 flex justify-between items-center bg-black/40 backdrop-blur-md border-b border-purple-950/40">
+        <div class="flex items-center space-x-4">
+            <div class="hidden sm:flex items-center space-x-2 bg-purple-950/40 px-3 py-1.5 rounded-lg border border-purple-500/20">
+                <i class="ph-bold ph-alien text-pink-500 text-2xl animate-bounce"></i>
+                <span class="font-arcade text-xs text-pink-500">INVASIÓN BOVINA</span>
+            </div>
+            <div class="flex flex-col">
+                <span class="text-xs uppercase tracking-wider text-purple-300">Puntaje</span>
+                <span class="font-arcade text-lg sm:text-xl text-yellow-400" id="score-val">00000</span>
+            </div>
+        </div>
+
+        <div class="flex flex-col items-center w-1/3 max-w-xs relative">
+            <span class="text-xs uppercase tracking-wider text-purple-300 mb-1 flex items-center gap-1">
+                <i class="ph-bold ph-shield-check text-pink-400"></i> Escudo Oktopus
+            </span>
+            <div class="w-full bg-slate-800 rounded-full h-4 p-0.5 border border-purple-500/30 overflow-hidden shadow-inner">
+                <div id="shield-bar" class="bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 h-full rounded-full transition-all duration-100 ease-out shadow-lg" style="width: 100%;"></div>
+            </div>
+            <div id="ai-booster-hud" class="absolute -bottom-5 text-[9px] font-arcade text-pink-400 hidden animate-pulse">
+                🚀 BUFF AI: ACTIVO
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <div class="flex flex-col items-end">
+                <span class="text-[10px] uppercase tracking-wider text-cyan-300 flex items-center gap-1">
+                    <i class="ph-bold ph-shield text-cyan-400 animate-pulse"></i> Carga Escudo (5 Vacas)
+                </span>
+                <span class="font-arcade text-sm sm:text-md text-cyan-400 flex items-center gap-1" id="shield-progress-hud">
+                    [░░░░░]
+                </span>
+            </div>
+            <div class="flex flex-col items-end">
+                <span class="text-xs uppercase tracking-wider text-purple-300">Vacas Secuestradas</span>
+                <span class="font-arcade text-lg sm:text-xl text-green-400 flex items-center gap-2" id="cows-abducted-val">
+                    🐄 <span id="cow-count">0</span>
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative flex-1 w-full overflow-hidden flex items-center justify-center">
+        <canvas id="game-canvas" class="block w-full h-full max-h-full max-w-full bg-transparent cursor-none relative z-10"></canvas>
+
+        <!-- PANTALLA DE MENÚ / BIENVENIDA -->
+        <div id="start-menu" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md px-6 text-center transition-all duration-300 overflow-y-auto py-10">
+            <div class="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                
+                <!-- Panel Izquierdo: Instrucciones y Botón de Inicio (7 Columnas) -->
+                <div class="lg:col-span-7 p-6 rounded-2xl bg-gradient-to-br from-purple-950/50 to-black/90 border border-pink-500/30 shadow-2xl flex flex-col justify-between space-y-4">
+                    <div class="space-y-4">
+                        <div class="flex justify-center">
+                            <div class="w-16 h-16 bg-pink-500/10 rounded-full flex items-center justify-center border border-pink-500/30 neon-glow-pink animate-pulse">
+                                <i class="ph-bold ph-alien text-pink-400 text-4xl"></i>
+                            </div>
+                        </div>
+                        <h1 class="font-arcade text-xl md:text-2xl text-pink-400 leading-normal tracking-wide neon-glow-pink">INVASIÓN BOVINA</h1>
+                        <p class="text-purple-200 text-xs leading-relaxed">
+                            Evita los misiles de los dirigibles, destruye a los granjeros molestos y abduce vacas para activar tu súper escudo deflector de 3 segundos.
+                        </p>
+                        <div class="bg-purple-950/30 border border-purple-500/20 p-3 rounded-xl text-left text-[11px] space-y-1.5 text-purple-300">
+                            <p class="font-semibold text-pink-400 flex items-center gap-1"><i class="ph-bold ph-game-controller"></i> CONTROLES:</p>
+                            <p>🛸 <strong class="text-white">Teclado:</strong> Flechas / WASD para volar. <strong class="text-white">[Espacio]</strong> para abducir. <strong class="text-cyan-400">[C], [X] o [Shift]</strong> para disparar plasma.</p>
+                            <p>📱 <strong class="text-white">Móvil:</strong> Usa el Joystick para volar, botón <strong class="text-white">ABDUCIR</strong> y botón <strong class="text-cyan-400">FUEGO</strong>.</p>
+                            <p>🛡️ <strong class="text-cyan-300 font-bold">Mecánica del Escudo:</strong> Cada 5 vacas abducidas generas automáticamente una burbuja de invulnerabilidad de 3 segundos.</p>
+                        </div>
+                    </div>
+                    
+                    <button id="start-game-btn" class="w-full bg-pink-500 hover:bg-pink-400 text-black font-arcade text-sm py-4 rounded-xl neon-glow-pink transform hover:scale-105 transition-all">
+                        INICIAR INVASIÓN
+                    </button>
+                </div>
+
+                <!-- Panel Derecho: Sistema de Pestañas Interactivas (Radio IA vs Ranking Global) -->
+                <div class="lg:col-span-5 p-5 rounded-2xl bg-gradient-to-b from-slate-950 to-purple-950/60 border border-purple-500/30 shadow-2xl flex flex-col justify-between text-left">
+                    <div class="space-y-3 flex-1 flex flex-col">
+                        
+                        <!-- Pestañas de Control -->
+                        <div class="flex border-b border-purple-500/20 pb-2 gap-2">
+                            <button id="tab-ai-btn" class="tab-btn active flex-1 py-1.5 rounded-lg border border-purple-500/20 text-xs font-arcade text-purple-300 hover:border-pink-500/50 transition-all">
+                                🛰️ RADIO IA
+                            </button>
+                            <button id="tab-rank-btn" class="tab-btn flex-1 py-1.5 rounded-lg border border-purple-500/20 text-xs font-arcade text-purple-300 hover:border-pink-500/50 transition-all">
+                                🏆 TOP 5
+                            </button>
+                        </div>
+                        
+                        <!-- CONTENIDO 1: Radio Transceptor IA de Oktopus -->
+                        <div id="tab-content-ai" class="flex-1 flex flex-col justify-between space-y-3">
+                            <div class="bg-black/70 rounded-lg p-3 border border-purple-500/10 flex-1 flex flex-col justify-between min-h-[180px] relative overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none"></div>
+                                <div id="ai-chat-output" class="text-xs text-purple-200 space-y-2 overflow-y-auto max-h-[160px] leading-relaxed">
+                                    <p class="text-purple-400 font-semibold"><span class="text-pink-400">🛸 Oktopus:</span> "¿Qué onda wey? ¿Quieres que te regale un súper booster de velocidad para tu nave? Convénceme de que eres un piloto chingón..."</p>
+                                </div>
+                                <div id="ai-booster-status" class="mt-2 p-1.5 rounded bg-pink-950/20 border border-pink-500/20 text-[9px] text-pink-300 hidden text-center font-arcade">
+                                    ¡BOOSTER DESBLOQUEADO!
+                                </div>
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <input id="ai-chat-input" type="text" placeholder="Háblale chingón a Oktopus..." class="flex-1 bg-black/60 border border-purple-500/30 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500 transition-all placeholder-purple-500">
+                                <button id="ai-send-btn" class="bg-purple-600 hover:bg-purple-500 text-white p-2.5 rounded-lg transition-all flex items-center justify-center">
+                                    <i id="ai-btn-icon" class="ph-bold ph-paper-plane-right"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- CONTENIDO 2: Terminal de Clasificación Global (Leaderboard) -->
+                        <div id="tab-content-rank" class="hidden flex-1 flex flex-col justify-between space-y-3">
+                            <div class="bg-black/80 rounded-lg p-3 border border-emerald-500/20 flex-1 flex flex-col justify-start min-h-[180px] relative overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none"></div>
+                                <p class="text-center font-arcade text-[10px] text-emerald-400 animate-pulse border-b border-emerald-500/10 pb-1.5 mb-2">🏆 TERMINAL DE CLASIFICACIÓN</p>
+                                
+                                <!-- Tabla Retro -->
+                                <div class="text-[10px] font-mono leading-relaxed space-y-1.5 w-full">
+                                    <div class="grid grid-cols-12 text-emerald-500 font-arcade text-[8px] uppercase tracking-wider pb-1 border-b border-emerald-500/10">
+                                        <div class="col-span-2">POS</div>
+                                        <div class="col-span-4">PILOTO</div>
+                                        <div class="col-span-3">VACAS</div>
+                                        <div class="col-span-3 text-right">PUNTOS</div>
+                                    </div>
+                                    <div id="leaderboard-entries-container" class="space-y-1.5 pt-1.5">
+                                        <!-- Se inyecta dinámicamente vía JS -->
+                                        <p class="text-center text-[9px] text-emerald-600 italic py-4 font-arcade animate-pulse">Cargando base de datos orbital...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- PANTALLA DE JUEGO TERMINADO -->
+        <div id="game-over-screen" class="absolute inset-0 z-20 hidden flex flex-col items-center justify-center bg-black/90 backdrop-blur-md px-6 text-center overflow-y-auto py-10">
+            <div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Panel Estadísticas e Inscripción -->
+                <div class="p-6 rounded-2xl bg-gradient-to-br from-red-950/40 to-black/95 border border-red-500/30 shadow-2xl flex flex-col justify-between space-y-4">
+                    <div class="space-y-3">
+                        <div class="flex justify-center">
+                            <div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center border border-red-500/30 neon-glow-red">
+                                <i class="ph-bold ph-skull text-red-500 text-4xl"></i>
+                            </div>
+                        </div>
+                        <h2 class="font-arcade text-lg text-red-500 neon-glow-red">¡OKTOPUS DERRIBADO!</h2>
+                        <p class="text-slate-300 text-xs">Tu nave espacial se ha desintegrado en mil pedazos metálicos.</p>
+                        
+                        <div class="grid grid-cols-2 gap-3 bg-slate-900/50 p-3 rounded-xl border border-purple-500/10 text-center">
+                            <div>
+                                <span class="text-[10px] text-purple-300 uppercase block">Puntaje Final</span>
+                                <span class="font-arcade text-sm text-yellow-400" id="final-score-val">0</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-purple-300 uppercase block">Vacas Totales</span>
+                                <span class="font-arcade text-sm text-green-400" id="final-cows-val">0</span>
+                            </div>
+                        </div>
+
+                        <!-- Formulario para Registrar Puntuación -->
+                        <div id="submit-score-box" class="bg-purple-950/25 border border-pink-500/20 p-3 rounded-xl space-y-2 mt-2">
+                            <p class="font-arcade text-[9px] text-pink-400">¿Guardar récord en el ranking?</p>
+                            <div class="flex gap-2">
+                                <input id="player-nickname-input" type="text" maxlength="8" placeholder="PILOTO" class="flex-1 bg-black/60 border border-purple-500/30 rounded-lg px-3 py-1.5 text-xs text-white uppercase focus:outline-none focus:border-pink-500 text-center font-arcade placeholder-purple-700">
+                                <button id="submit-score-btn" class="bg-pink-600 hover:bg-pink-500 text-black font-arcade text-[10px] px-3 py-1.5 rounded-lg transition-all">
+                                    REGISTRAR
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-2 pt-2">
+                        <button id="restart-game-btn" class="w-full bg-red-500 hover:bg-red-400 text-white font-arcade text-xs py-3 rounded-xl neon-glow-red transform hover:scale-105 transition-all">
+                            RECONSTRUIR NAVE
+                        </button>
+                        <button id="go-to-menu-btn" class="w-full bg-purple-950/40 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 py-2 rounded-xl transition-all text-xs">
+                            Volver al menú principal
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panel de Evaluación IA de Oktopus -->
+                <div class="p-6 rounded-2xl bg-gradient-to-b from-slate-950 to-red-950/40 border border-purple-500/30 shadow-2xl flex flex-col justify-between text-left">
+                    <div class="space-y-3 flex-1 flex flex-col">
+                        <div class="flex items-center gap-2 border-b border-red-500/20 pb-2">
+                            <i class="ph-bold ph-newspaper-clipping text-red-500 animate-pulse text-lg"></i>
+                            <span class="font-arcade text-[10px] text-red-400">INFORME DE EVALUACIÓN IA</span>
+                        </div>
+                        
+                        <div class="bg-black/80 rounded-lg p-4 border border-red-500/10 flex-1 flex flex-col justify-start min-h-[180px] relative">
+                            <div class="absolute inset-0 bg-gradient-to-b from-red-500/5 to-transparent pointer-events-none"></div>
+                            
+                            <div id="ai-evaluation-output" class="text-xs text-slate-300 leading-relaxed font-mono space-y-2">
+                                <p class="text-red-400 animate-pulse">Generando evaluación de Oktopus desde el espacio...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Alerta Militar Terrestre -->
+        <div id="wave-alert" class="absolute pointer-events-none opacity-0 flex flex-col items-center justify-center transition-all duration-700 transform scale-75 z-25">
+            <div class="bg-red-950/80 border-2 border-red-500 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+                <i class="ph-bold ph-warning text-red-500 text-3xl animate-ping"></i>
+                <div class="text-left">
+                    <p class="font-arcade text-xs text-red-500">ALERTA MILITAR</p>
+                    <p class="text-xs text-white">¡Se aproximan dirigibles pesados contra Oktopus!</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MANDOS MÓVILES (Joystick y Botones táctiles proporcionales y completamente circulares) -->
+    <footer id="touch-controls" class="relative z-10 w-full p-4 grid grid-cols-2 bg-black/50 border-t border-purple-950/40 select-none pb-8 sm:pb-4 md:hidden">
+        <div class="flex items-center justify-start pl-4 select-none">
+            <div id="joystick-container" class="w-28 h-28 rounded-full bg-purple-950/30 border-2 border-purple-500/30 flex items-center justify-center relative touch-none shadow-inner">
+                <div id="joystick-handle" class="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 border border-purple-300 neon-glow-pink absolute transition-none touch-none shadow-lg flex items-center justify-center">
+                    <i class="ph-bold ph-arrows-out-cardinal text-white/50 text-md"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones proporcionales y perfectamente circulares con animaciones de estado -->
+        <div class="flex items-center justify-end pr-4 gap-4 select-none">
+            <button id="shoot-btn" class="w-24 h-24 rounded-full bg-gradient-to-b from-cyan-500 to-blue-700 border-2 border-cyan-300 flex flex-col items-center justify-center active:scale-95 transition-all select-none touch-none neon-glow-blue">
+                <i class="ph-bold ph-crosshair text-white text-2xl animate-pulse"></i>
+                <span class="font-arcade text-[8px] text-white mt-1 font-bold">FUEGO</span>
+            </button>
+            <button id="action-btn" class="w-24 h-24 rounded-full bg-gradient-to-b from-pink-500 to-purple-700 border-2 border-pink-300 flex flex-col items-center justify-center active:scale-95 transition-all select-none touch-none neon-glow-pink">
+                <i class="ph-bold ph-radiation text-white text-3xl animate-spin-slow"></i>
+                <span class="font-arcade text-[8px] text-white mt-1 font-bold">ABDUCIR</span>
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        // CONFIGURACIÓN DE AUDIO NATIVO (SFX)
+        const AudioFX = {
+            ctx: null,
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+
+            playBeam(duration = 0.1) {
+                if (!this.ctx) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + duration);
+                
+                gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+
+            playLaser() {
+                if (!this.ctx) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(110, this.ctx.currentTime + 0.15);
+
+                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            },
+
+            playMoo() {
+                if (!this.ctx) return;
+                this.init();
+                const osc1 = this.ctx.createOscillator();
+                const osc2 = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc1.type = 'triangle';
+                osc1.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc1.frequency.linearRampToValueAtTime(105, this.ctx.currentTime + 0.6);
+
+                osc2.type = 'sawtooth';
+                osc2.frequency.setValueAtTime(153, this.ctx.currentTime);
+                osc2.frequency.linearRampToValueAtTime(107, this.ctx.currentTime + 0.6);
+
+                gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.7);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc1.start();
+                osc2.start();
+                osc1.stop(this.ctx.currentTime + 0.7);
+                osc2.stop(this.ctx.currentTime + 0.7);
+            },
+
+            playExplosion() {
+                if (!this.ctx) return;
+                this.init();
+                const bufferSize = this.ctx.sampleRate * 0.6;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(500, this.ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(15, this.ctx.currentTime + 0.6);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.6);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start();
+                noise.stop(this.ctx.currentTime + 0.6);
+            },
+
+            playHit() {
+                if (!this.ctx) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(60, this.ctx.currentTime + 0.2);
+
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            },
+
+            playUpgrade() {
+                if (!this.ctx) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(554, this.ctx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(659, this.ctx.currentTime + 0.2);
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime + 0.3);
+
+                gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.45);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.5);
+            }
+        };
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'invasion-bovina-solana';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "dummy-key-for-local",
+            authDomain: "dummy.firebaseapp.com",
+            projectId: "dummy-project",
+            storageBucket: "dummy.appspot.com",
+            messagingSenderId: "12345",
+            appId: "1:12345:web:12345"
+        };
+
+        let app = null;
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let dbReady = false;
+        let leaderboardCollection = null;
+
+        // Base de datos de reserva local (LocalStorage fallback para el Sandbox)
+        function getLocalLeaderboard() {
+            try {
+                const data = localStorage.getItem('local_leaderboard');
+                return data ? JSON.parse(data) : [
+                    { nickname: "ALIEN_B", score: 12500, cows: 45, wallet: "ARRG...Xyxy" },
+                    { nickname: "COW_PRO", score: 8900, cows: 32, wallet: "8Fjd...3b8a" },
+                    { nickname: "PILOTO_1", score: 6400, cows: 24, wallet: "9Pka...m7e9" },
+                    { nickname: "PHANTOM", score: 4800, cows: 18, wallet: "F8b2...0a8d" },
+                    { nickname: "OKTOPUS", score: 3100, cows: 12, wallet: "3Mks...98ka" }
+                ];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveLocalLeaderboard(records) {
+            try {
+                localStorage.setItem('local_leaderboard', JSON.stringify(records));
+            } catch (e) {
+                console.warn("No se pudo escribir en LocalStorage", e);
+            }
+        }
+
+        // Inicializar Firebase
+        async function authenticate() {
+            try {
+                // Verificar si la api key es real o dummy
+                if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "dummy-key-for-local") {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    leaderboardCollection = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                    
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                        currentUser = cred.user;
+                    } else {
+                        const cred = await signInAnonymously(auth);
+                        currentUser = cred.user;
+                    }
+                    console.log("Firebase autenticado.");
+                    dbReady = true;
+                } else {
+                    console.warn("Usando base de datos LocalStorage (Modo Sandbox)");
+                }
+            } catch (err) {
+                console.warn("Error Firebase, iniciando LocalStorage Fallback:", err);
+            }
+            loadLeaderboard();
+        }
+
+        // Carga y ordenación de la clasificación
+        async function loadLeaderboard() {
+            let records = [];
+            if (dbReady && auth.currentUser) {
+                try {
+                    const snapshot = await getDocs(leaderboardCollection);
+                    snapshot.forEach(doc => {
+                        records.push(doc.data());
+                    });
+                } catch (err) {
+                    console.warn("Error leyendo Firestore, recurriendo a local:", err);
+                    records = getLocalLeaderboard();
+                }
+            } else {
+                records = getLocalLeaderboard();
+            }
+
+            // Ordenación de alto rendimiento en memoria
+            records.sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                return b.cows - a.cows;
+            });
+
+            const top5 = records.slice(0, 5);
+            displayLeaderboardUI(top5);
+        }
+
+        function displayLeaderboardUI(records) {
+            const container = document.getElementById('leaderboard-entries-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (records.length === 0) {
+                container.innerHTML = `<p class="text-center text-[9px] text-emerald-600 italic py-4">No hay récords registrados todavía.</p>`;
+                return;
+            }
+
+            records.forEach((rec, idx) => {
+                const el = document.createElement('div');
+                el.className = "grid grid-cols-12 text-[10px] py-1 border-b border-emerald-500/5 hover:bg-emerald-500/5 px-1 transition-all rounded";
+                
+                let walletStr = rec.wallet || "N/A";
+                if (walletStr.length > 8 && walletStr !== "N/A") {
+                    walletStr = walletStr.substring(0, 4) + '...' + walletStr.substring(walletStr.length - 4);
+                }
+
+                el.innerHTML = `
+                    <div class="col-span-2 text-emerald-400 font-arcade text-[8px]">#${idx + 1}</div>
+                    <div class="col-span-4 text-white uppercase truncate font-semibold">${rec.nickname || 'ANÓNIMO'}</div>
+                    <div class="col-span-3 text-emerald-500 font-mono text-[9px]">${rec.cows} 🐄</div>
+                    <div class="col-span-3 text-right text-yellow-400 font-arcade text-[9px]">${rec.score}</div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        async function submitScore(nickname, score, cows, wallet) {
+            const finalRecord = {
+                nickname: nickname.toUpperCase() || "OKTOPUS",
+                score: parseInt(score) || 0,
+                cows: parseInt(cows) || 0,
+                wallet: wallet || "CONEXIÓN LOCAL",
+                timestamp: Date.now()
+            };
+
+            // Escribir en base local para asegurar guardado instantáneo en previsualizaciones
+            const localRecs = getLocalLeaderboard();
+            localRecs.push(finalRecord);
+            localRecs.sort((a, b) => b.score - a.score);
+            saveLocalLeaderboard(localRecs);
+
+            if (dbReady && auth.currentUser) {
+                try {
+                    await addDoc(leaderboardCollection, {
+                        ...finalRecord,
+                        userId: auth.currentUser.uid
+                    });
+                    console.log("Récord replicado en la nube.");
+                } catch (err) {
+                    console.error("Error al persistir récord en la nube:", err);
+                }
+            }
+            loadLeaderboard();
+        }
+
+        // Exportación global segura
+        window.Leaderboard = {
+            submit: submitScore,
+            reload: loadLeaderboard
+        };
+
+        // Iniciar autenticación síncrona
+        authenticate();
+    </script>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        const assets = {
+            fondo: { img: new Image(), loaded: false, src: 'fondo_granja.png' },
+            pulpo: { img: new Image(), loaded: false, src: 'pulpo_ufo.png' },
+            sprites: { img: new Image(), loaded: false, src: 'Gemini_Generated_Image_5jnjej5jnjej5jnj_2.png' }
+        };
+
+        Object.keys(assets).forEach(key => {
+            assets[key].img.onload = () => { assets[key].loaded = true; };
+            assets[key].img.onerror = () => { assets[key].loaded = false; };
+            assets[key].img.src = assets[key].src;
+        });
+
+        // Estado del juego
+        let gameState = 'menu';
+        let score = 0;
+        let cowsAbducted = 0;
+        let shieldProgress = 0; 
+        let scaleRatio = 1;
+        let gameFrame = 0;
+        let bgScrollX = 0;
+
+        let activeAIBooster = {
+            type: 'none', 
+            multiplier: 1.0,
+            description: '',
+            applied: false
+        };
+
+        const ufoBaseStats = {
+            speed: 5,
+            beamSpeed: 1.8,
+            maxShield: 100,
+            beamWidth: 65
+        };
+
+        const ufo = {
+            x: 0,
+            y: 0,
+            width: 85,
+            height: 75,
+            vx: 0,
+            vy: 0,
+            shield: 100,
+            beamActive: false,
+            beamPulse: 0,
+            tilt: 0, 
+            eyeSpiralAngle: 0,
+            shieldTimer: 0, 
+            shootCooldown: 0
+        };
+
+        let cows = [];
+        let particles = [];
+        let backgroundStars = [];
+        let clouds = [];
+        let enemies = [];
+        let enemyProjectiles = [];
+        let playerProjectiles = []; 
+        let debris = []; 
+        let staticScenery = []; 
+        let floatingTexts = []; 
+
+        let keys = {};
+        let touchData = { active: false, x: 0, y: 0, actionActive: false, shootActive: false };
+        let joystickCenter = { x: 0, y: 0 };
+        let joystickVector = { x: 0, y: 0 };
+        let spawnTimers = { cow: 0, farmer: 0, military: 0, cloud: 0 };
+
+        let difficultyMultiplier = 1;
+        let timeElapsed = 0;
+
+        class FloatingText {
+            constructor(x, y, text, color = '#facc15', size = 11) {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.size = size;
+                this.life = 60;
+                this.vy = -1.2;
+            }
+            update() {
+                this.y += this.vy;
+                this.life--;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life / 60);
+                ctx.fillStyle = this.color;
+                ctx.font = `bold ${this.size}px "Press Start 2P"`;
+                ctx.textAlign = 'center';
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const containerWidth = canvas.parentElement.clientWidth;
+            const containerHeight = canvas.parentElement.clientHeight;
+
+            canvas.width = containerWidth * dpr;
+            canvas.height = containerHeight * dpr;
+            ctx.scale(dpr, dpr);
+
+            scaleRatio = Math.min(containerWidth / 1000, containerHeight / 600);
+            if (scaleRatio < 0.6) scaleRatio = 0.6;
+
+            if (ufo.x > containerWidth) ufo.x = containerWidth - 100;
+            if (ufo.y > containerHeight) ufo.y = containerHeight - 150;
+            
+            generateFarmScenery();
+        }
+
+        function createStars() {
+            backgroundStars = [];
+            const width = canvas.parentElement.clientWidth;
+            const height = canvas.parentElement.clientHeight;
+            const starCount = Math.floor((width * height) / 11000);
+
+            for (let i = 0; i < starCount; i++) {
+                backgroundStars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * (height * 0.7),
+                    size: Math.random() * 2 + 0.5,
+                    opacity: Math.random(),
+                    pulseSpeed: Math.random() * 0.03 + 0.005
+                });
+            }
+        }
+    </script>
+
+    <script>
+        class Windmill {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.angle = 0;
+            }
+            update() {
+                this.angle += 0.015;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(0, -100);
+                ctx.lineTo(-25, 0);
+                ctx.moveTo(0, -100);
+                ctx.lineTo(25, 0);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(-12, -50); ctx.lineTo(12, -50);
+                ctx.moveTo(-6, -25); ctx.lineTo(6, -25);
+                ctx.moveTo(-18, -75); ctx.lineTo(18, -75);
+                ctx.stroke();
+
+                ctx.fillStyle = '#78716c';
+                ctx.fillRect(-15, -115, 30, 20);
+                ctx.fillStyle = '#b45309'; 
+                ctx.fillRect(-15, -105, 8, 10);
+                ctx.fillStyle = '#dc2626'; 
+                ctx.font = 'bold 8px monospace';
+                ctx.fillText('GO', 10, -100);
+
+                ctx.save();
+                ctx.translate(0, -105);
+                ctx.rotate(this.angle);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 3;
+                for (let i = 0; i < 4; i++) {
+                    ctx.rotate(Math.PI / 2);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(0, -45);
+                    ctx.stroke();
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(-6, -45, 12, 25);
+                    ctx.fillStyle = '#57534e';
+                    ctx.fillRect(-4, -40, 8, 20);
+                }
+                ctx.restore();
+
+                ctx.restore();
+            }
+        }
+
+        class WaterTower {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+            }
+            update() {}
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.strokeStyle = '#4b5563';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(-25, -140); ctx.lineTo(-25, 0);
+                ctx.moveTo(-30, -140); ctx.lineTo(-30, 0);
+                ctx.stroke();
+                for (let yy = 0; yy >= -140; yy -= 10) {
+                    ctx.beginPath();
+                    ctx.moveTo(-30, yy); ctx.lineTo(-25, yy);
+                    ctx.stroke();
+                }
+
+                ctx.strokeStyle = '#57534e';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-20, -110); ctx.lineTo(-20, 0);
+                ctx.moveTo(20, -110); ctx.lineTo(20, 0);
+                ctx.moveTo(0, -110); ctx.lineTo(0, 0);
+                ctx.stroke();
+
+                ctx.strokeStyle = '#44403c';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(-20, -110); ctx.lineTo(20, 0);
+                ctx.moveTo(20, -110); ctx.lineTo(-20, 0);
+                ctx.stroke();
+
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(-35, -112, 70, 6);
+
+                ctx.fillStyle = '#78716c';
+                ctx.fillRect(-30, -155, 60, 43);
+                
+                ctx.fillStyle = '#7c2d12';
+                ctx.fillRect(-22, -150, 10, 25);
+                ctx.fillRect(10, -130, 14, 15);
+
+                ctx.fillStyle = '#44403c';
+                ctx.beginPath();
+                ctx.moveTo(-33, -155);
+                ctx.lineTo(0, -175);
+                ctx.lineTo(33, -155);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#2563eb'; 
+                ctx.font = 'bold 8px Inter';
+                ctx.fillText('МОЛОКО', -22, -140);
+                ctx.fillStyle = '#16a34a'; 
+                ctx.fillText('CRASH', -15, -125);
+                ctx.fillStyle = '#ea580c'; 
+                ctx.font = '7px sans-serif';
+                ctx.fillText('CCCP', 5, -118);
+
+                ctx.restore();
+            }
+        }
+
+        class GroundDecor {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+            }
+            update() {}
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                if (this.type === 'crates') {
+                    ctx.fillStyle = '#78350f';
+                    ctx.strokeStyle = '#451a03';
+                    ctx.lineWidth = 1.5;
+                    
+                    ctx.fillRect(-15, -15, 14, 15);
+                    ctx.strokeRect(-15, -15, 14, 15);
+                    ctx.fillRect(0, -15, 14, 15);
+                    ctx.strokeRect(0, -15, 14, 15);
+
+                    ctx.fillRect(-7.5, -30, 14, 15);
+                    ctx.strokeRect(-7.5, -30, 14, 15);
+
+                    ctx.beginPath();
+                    ctx.moveTo(-15, -15); ctx.lineTo(-1, 0);
+                    ctx.moveTo(0, -15); ctx.lineTo(14, 0);
+                    ctx.moveTo(-7.5, -30); ctx.lineTo(6.5, -15);
+                    ctx.stroke();
+                } else if (this.type === 'tires') {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.strokeStyle = '#0f172a';
+                    ctx.lineWidth = 1.5;
+
+                    ctx.beginPath();
+                    ctx.ellipse(-10, -5, 10, 5, 0, 0, Math.PI*2);
+                    ctx.fill(); ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.ellipse(10, -5, 10, 5, 0, 0, Math.PI*2);
+                    ctx.fill(); ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.ellipse(0, -10, 10, 5, 0, 0, Math.PI*2);
+                    ctx.fill(); ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        function generateFarmScenery() {
+            staticScenery = [];
+            const w = canvas.parentElement.clientWidth;
+            const groundY = canvas.parentElement.clientHeight - 35;
+
+            staticScenery.push(new Windmill(w * 0.15, groundY));
+            staticScenery.push(new WaterTower(w * 0.8, groundY));
+            staticScenery.push(new GroundDecor(w * 0.28, groundY, 'crates'));
+            staticScenery.push(new GroundDecor(w * 0.72, groundY, 'tires'));
+        }
+    </script>
+
+    <script>
+        class Debris {
+            constructor(x, y, vx, vy, size) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.size = size;
+                this.angle = Math.random() * Math.PI * 2;
+                this.spin = (Math.random() - 0.5) * 0.2;
+                this.life = 100;
+                this.gravity = 0.15;
+            }
+
+            update() {
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.angle += this.spin;
+                this.life--;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.fillStyle = '#5c4c44';
+                ctx.strokeStyle = '#2b221d';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(-this.size/2, -this.size/2);
+                ctx.lineTo(this.size/2, -this.size/3);
+                ctx.lineTo(this.size/3, this.size/2);
+                ctx.lineTo(-this.size/3, this.size/3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, speedX, speedY, size, maxLife, fade = true) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.vx = speedX;
+                this.vy = speedY;
+                this.size = size;
+                this.life = maxLife;
+                this.maxLife = maxLife;
+                this.fade = fade;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+            }
+
+            draw() {
+                const alpha = this.fade ? Math.max(0, this.life / this.maxLife) : 1;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class Cloud {
+            constructor() {
+                const w = canvas.parentElement.clientWidth;
+                this.x = w + 150;
+                this.y = Math.random() * 80 + 80;
+                this.width = Math.random() * 120 + 90;
+                this.height = this.width * 0.45;
+                this.speed = Math.random() * 0.4 + 0.15;
+            }
+
+            update() {
+                this.x -= this.speed;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.fillStyle = 'rgba(128, 90, 213, 0.08)'; 
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.width * 0.3, 0, Math.PI * 2);
+                ctx.arc(this.x + this.width * 0.25, this.y - this.height * 0.22, this.width * 0.26, 0, Math.PI * 2);
+                ctx.arc(this.x + this.width * 0.5, this.y, this.width * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+    </script>
+
+    <script>
+        class Cow {
+            constructor() {
+                const w = canvas.parentElement.clientWidth;
+                this.x = Math.random() * w;
+                this.y = canvas.parentElement.clientHeight - 55;
+                this.width = 44 * scaleRatio;
+                this.height = 32 * scaleRatio;
+                this.vx = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 0.4 + 0.3);
+                this.state = 'walk'; 
+                this.dir = this.vx > 0 ? 1 : -1;
+                this.grazeTimer = Math.random() * 180 + 100;
+                this.wiggle = 0;
+            }
+
+            update() {
+                const ufoCenterX = ufo.x + ufo.width / 2;
+                const distanceToUfo = Math.abs((this.x + this.width / 2) - ufoCenterX);
+
+                if (this.state !== 'beamed' && this.state !== 'safe') {
+                    if (ufo.beamActive && distanceToUfo < 160) {
+                        this.state = 'panic';
+                    } else if (this.state === 'panic' && (!ufo.beamActive || distanceToUfo > 240)) {
+                        this.state = 'walk';
+                    }
+                }
+
+                if (this.state === 'walk') {
+                    this.x += this.vx;
+                    this.wiggle += 0.05;
+                    const w = canvas.parentElement.clientWidth;
+                    if (this.x < 10) { this.x = 10; this.vx *= -1; this.dir = 1; }
+                    if (this.x > w - this.width - 10) { this.x = w - this.width - 10; this.vx *= -1; this.dir = -1; }
+
+                    this.grazeTimer--;
+                    if (this.grazeTimer <= 0) {
+                        this.state = 'grazing';
+                        this.grazeTimer = Math.random() * 120 + 85; 
+                    }
+                } else if (this.state === 'grazing') {
+                    this.wiggle += 0.02;
+                    this.grazeTimer--;
+                    
+                    if (Math.random() < 0.12) {
+                        particles.push(new Particle(
+                            this.x + (this.dir === 1 ? this.width * 0.8 : this.width * 0.2),
+                            this.y + this.height * 0.8,
+                            '#22c55e', 
+                            (Math.random() - 0.5) * 0.6,
+                            Math.random() * 0.6,
+                            1.5,
+                            15
+                        ));
+                    }
+
+                    if (this.grazeTimer <= 0) {
+                        this.state = 'walk';
+                        this.vx = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 0.4 + 0.3);
+                        this.dir = this.vx > 0 ? 1 : -1;
+                        this.grazeTimer = Math.random() * 250 + 150;
+                    }
+                } else if (this.state === 'panic') {
+                    this.vx = (this.x < ufoCenterX ? -1.8 : 1.8);
+                    this.x += this.vx;
+                    this.dir = this.vx > 0 ? 1 : -1;
+                    this.wiggle += 0.25;
+
+                    const w = canvas.parentElement.clientWidth;
+                    if (this.x < 10) { this.x = 10; }
+                    if (this.x > w - this.width - 10) { this.x = w - this.width - 10; }
+                } else if (this.state === 'beamed') {
+                    const stats = getUfoStats();
+                    this.y -= stats.beamSpeed;
+                    this.x += (ufo.x + ufo.width / 2 - (this.x + this.width / 2)) * 0.08;
+                    this.wiggle += 0.25;
+
+                    if (Math.random() < 0.25) {
+                        particles.push(new Particle(
+                            this.x + this.width / 2 + (Math.random() * 20 - 10),
+                            this.y + this.height / 2,
+                            '#ec4899',
+                            Math.random() * 1 - 0.5,
+                            Math.random() * -2 - 1,
+                            Math.random() * 2.5 + 1,
+                            25
+                        ));
+                    }
+
+                    if (this.y <= ufo.y + ufo.height - 10) {
+                        this.state = 'safe';
+                        score += 500;
+                        cowsAbducted++;
+                        shieldProgress++;
+
+                        // Cada 5 vacas se activa automáticamente un escudo de 3 segundos
+                        if (shieldProgress >= 5) {
+                            shieldProgress = 0;
+                            ufo.shieldTimer = 180; // 3 Segundos (60 FPS * 3)
+                            AudioFX.playUpgrade();
+                            floatingTexts.push(new FloatingText(ufo.x + ufo.width / 2, ufo.y - 45, "¡ESCUDO ACTIVO!", "#06b6d4", 12));
+                        }
+
+                        updateHUD();
+                        AudioFX.playMoo();
+
+                        floatingTexts.push(new FloatingText(ufo.x + ufo.width / 2, ufo.y - 15, "+500 L", "#22c55e", 11));
+                        
+                        for (let i = 0; i < 20; i++) {
+                            const angle = (Math.PI * 2 / 20) * i;
+                            particles.push(new Particle(
+                                ufo.x + ufo.width / 2,
+                                ufo.y + ufo.height - 15,
+                                '#d946ef',
+                                Math.cos(angle) * 3,
+                                Math.sin(angle) * 3,
+                                Math.random() * 3 + 2,
+                                35
+                            ));
+                        }
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                
+                if (this.state === 'beamed') {
+                    ctx.rotate(Math.sin(this.wiggle) * 0.4 - 0.15);
+                } else if (this.state === 'panic') {
+                    ctx.rotate(Math.sin(this.wiggle) * 0.15);
+                } else if (this.state === 'walk') {
+                    ctx.rotate(Math.sin(this.wiggle) * 0.05);
+                }
+
+                ctx.scale(this.dir, 1);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(-this.width / 2, -this.height / 3, this.width * 0.75, this.height * 0.6);
+
+                ctx.fillStyle = '#111827';
+                ctx.beginPath();
+                ctx.arc(-this.width * 0.25, -this.height * 0.1, this.width * 0.14, 0, Math.PI * 2);
+                ctx.arc(0, -this.height * 0.2, this.width * 0.12, 0, Math.PI * 2);
+                ctx.arc(this.width * 0.1, -this.height * 0.05, this.width * 0.11, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                let legOffset = Math.sin(this.wiggle * 2) * 5;
+                if (this.state === 'beamed') {
+                    legOffset = Math.sin(this.wiggle * 4) * 2;
+                } else if (this.state === 'grazing') {
+                    legOffset = 0;
+                }
+
+                ctx.fillRect(-this.width * 0.42, this.height * 0.25, this.width * 0.09, this.height * 0.25 + legOffset);
+                ctx.fillRect(-this.width * 0.28, this.height * 0.25, this.width * 0.09, this.height * 0.25 - legOffset);
+                ctx.fillRect(this.width * 0.05, this.height * 0.25, this.width * 0.09, this.height * 0.25 + legOffset);
+                ctx.fillRect(this.width * 0.18, this.height * 0.25, this.width * 0.09, this.height * 0.25 - legOffset);
+
+                ctx.fillStyle = '#111827';
+                ctx.fillRect(-this.width * 0.42, this.height * 0.45 + legOffset, this.width * 0.09, this.height * 0.08);
+                ctx.fillRect(-this.width * 0.28, this.height * 0.45 - legOffset, this.width * 0.09, this.height * 0.08);
+                ctx.fillRect(this.width * 0.05, this.height * 0.45 + legOffset, this.width * 0.09, this.height * 0.08);
+                ctx.fillRect(this.width * 0.18, this.height * 0.45 - legOffset, this.width * 0.09, this.height * 0.08);
+
+                ctx.save();
+                if (this.state === 'grazing') {
+                    ctx.translate(this.width * 0.2, this.height * 0.12);
+                    ctx.rotate(0.35); 
+                }
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(this.width * 0.25, -this.height * 0.45, this.width * 0.3, this.height * 0.45);
+                
+                ctx.fillStyle = '#fda4af';
+                ctx.fillRect(this.width * 0.38, -this.height * 0.3, this.width * 0.18, this.height * 0.28);
+
+                if (this.state === 'panic' || this.state === 'beamed') {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(this.width * 0.34, -this.height * 0.34, 4.5, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(this.width * 0.34, -this.height * 0.34, 1.2, 0, Math.PI*2);
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = '#111827';
+                    ctx.fillRect(this.width * 0.35, -this.height * 0.38, this.width * 0.05, this.height * 0.07);
+                }
+
+                ctx.restore();
+
+                ctx.fillStyle = '#fda4af';
+                ctx.fillRect(-this.width * 0.1, this.height * 0.2, this.width * 0.15, this.height * 0.1);
+
+                ctx.restore();
+            }
+        }
+    </script>
+
+    <script>
+        class Farmer {
+            constructor() {
+                const w = canvas.parentElement.clientWidth;
+                this.x = Math.random() > 0.5 ? -40 : w + 40;
+                this.y = canvas.parentElement.clientHeight - 65;
+                this.width = 32 * scaleRatio;
+                this.height = 45 * scaleRatio;
+                this.speed = (Math.random() * 0.7 + 0.4) * (this.x < 0 ? 1 : -1);
+                this.throwCooldown = Math.random() * 100 + 80;
+                this.animationTimer = 0;
+                this.throwActionState = 0; 
+                this.health = 30; 
+            }
+
+            update() {
+                this.x += this.speed;
+                this.animationTimer += 0.08;
+
+                const w = canvas.parentElement.clientWidth;
+                if ((this.speed > 0 && this.x > w + 100) || (this.speed < 0 && this.x < -100)) {
+                    this.isDead = true;
+                }
+
+                this.throwCooldown--;
+                if (this.throwCooldown <= 0 && Math.abs(this.x - ufo.x) < 320) {
+                    this.speed = 0; 
+                    this.throwActionState = 1;
+                    
+                    setTimeout(() => {
+                        this.throwProjectile();
+                        this.throwActionState = 2;
+                        
+                        setTimeout(() => {
+                            this.throwActionState = 0;
+                            this.speed = (Math.random() * 0.7 + 0.4) * (this.x < ufo.x ? 1 : -1);
+                        }, 250);
+                    }, 400);
+
+                    this.throwCooldown = Math.random() * 160 / difficultyMultiplier + 110;
+                }
+            }
+
+            throwProjectile() {
+                const dx = (ufo.x + ufo.width/2) - (this.x + this.width/2);
+                const dy = (ufo.y + ufo.height/2) - (this.y);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                const speed = 4.2 + difficultyMultiplier;
+                const vx = (dx / distance) * speed;
+                const vy = (dy / distance) * speed;
+
+                enemyProjectiles.push(new EnemyProjectile(
+                    this.x + this.width / 2,
+                    this.y,
+                    vx,
+                    vy,
+                    'rusty_can'
+                ));
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                ctx.scale(this.speed > 0 || (this.speed === 0 && ufo.x > this.x) ? 1 : -1, 1);
+
+                ctx.fillStyle = '#eab308';
+                ctx.fillRect(-this.width * 0.55, -this.height * 0.45, this.width * 1.1, this.height * 0.08);
+                ctx.fillRect(-this.width * 0.3, -this.height * 0.65, this.width * 0.6, this.height * 0.2);
+
+                ctx.fillStyle = '#fdba74';
+                ctx.fillRect(-this.width * 0.25, -this.height * 0.37, this.width * 0.5, this.height * 0.25);
+
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(-this.width * 0.2, -this.height * 0.23, this.width * 0.4, this.height * 0.08);
+
+                ctx.fillStyle = '#1d4ed8';
+                ctx.fillRect(-this.width * 0.32, -this.height * 0.05, this.width * 0.64, this.height * 0.35);
+
+                ctx.fillStyle = '#dc2626';
+                ctx.fillRect(-this.width * 0.25, -this.height * 0.15, this.width * 0.5, this.height * 0.12);
+
+                ctx.fillStyle = '#1e3a8a';
+                let legAnim = Math.sin(this.animationTimer) * 4;
+                if (this.speed === 0) legAnim = 0;
+                
+                ctx.fillRect(-this.width * 0.28, this.height * 0.3, this.width * 0.22, this.height * 0.2 + legAnim);
+                ctx.fillRect(this.width * 0.06, this.height * 0.3, this.width * 0.22, this.height * 0.2 - legAnim);
+
+                ctx.fillStyle = '#fdba74';
+                if (this.throwActionState === 1) {
+                    ctx.fillRect(-this.width * 0.55, -this.height * 0.25, this.width * 0.35, this.height * 0.12);
+                    ctx.fillStyle = '#ea580c';
+                    ctx.fillRect(-this.width * 0.65, -this.height * 0.32, 6, 8);
+                } else if (this.throwActionState === 2) {
+                    ctx.fillRect(this.width * 0.25, -this.height * 0.25, this.width * 0.4, this.height * 0.12);
+                } else {
+                    ctx.fillRect(-this.width * 0.45, -this.height * 0.05, this.width * 0.15, this.height * 0.25);
+                    ctx.fillRect(this.width * 0.3, -this.height * 0.05, this.width * 0.15, this.height * 0.25);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class Dirigible {
+            constructor() {
+                const w = canvas.parentElement.clientWidth;
+                this.x = Math.random() > 0.5 ? -100 : w + 100;
+                this.y = Math.random() * 100 + 80; 
+                this.width = 110 * scaleRatio;
+                this.height = 55 * scaleRatio;
+                this.speed = (Math.random() * 0.4 + 0.3) * (this.x < 0 ? 1 : -1);
+                this.fireCooldown = Math.random() * 100 + 60;
+                this.propellerAngle = 0;
+                this.health = 50; 
+            }
+
+            update() {
+                this.x += this.speed;
+                this.propellerAngle += 0.25;
+
+                const w = canvas.parentElement.clientWidth;
+                if ((this.speed > 0 && this.x > w + 150) || (this.speed < 0 && this.x < -150)) {
+                    this.isDead = true;
+                }
+
+                this.fireCooldown--;
+                if (this.fireCooldown <= 0 && Math.abs(this.x - ufo.x) < 500) {
+                    this.fireMissile();
+                    this.fireCooldown = (160 / difficultyMultiplier) + Math.random() * 100;
+                }
+            }
+
+            fireMissile() {
+                const dx = (ufo.x + ufo.width / 2) - (this.x + this.width / 2);
+                const dy = (ufo.y + ufo.height / 2) - (this.y + this.height * 0.5);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                const speed = 3.5 + difficultyMultiplier;
+                const vx = (dx / distance) * speed;
+                const vy = (dy / distance) * speed;
+
+                enemyProjectiles.push(new EnemyProjectile(
+                    this.x + this.width / 2,
+                    this.y + this.height * 0.5,
+                    vx,
+                    vy,
+                    'missile'
+                ));
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                ctx.scale(this.speed > 0 ? 1 : -1, 1);
+
+                ctx.save();
+                ctx.translate(-this.width * 0.48, 0);
+                ctx.rotate(this.propellerAngle);
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(-2, -18, 4, 36);
+                ctx.restore();
+
+                ctx.fillStyle = '#64748b';
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.width * 0.45, this.height * 0.42, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#9a3412';
+                ctx.fillRect(-this.width * 0.2, -this.height * 0.1, 12, 10);
+                ctx.fillRect(this.width * 0.15, -this.height * 0.25, 20, 8);
+
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(-this.width * 0.2, this.height * 0.3, this.width * 0.4, 8);
+                ctx.fillStyle = '#67e8f9'; 
+                ctx.fillRect(-this.width * 0.15, this.height * 0.31, 10, 5);
+                ctx.fillRect(0, this.height * 0.31, 10, 5);
+
+                ctx.fillStyle = '#dc2626';
+                ctx.beginPath();
+                ctx.arc(-this.width * 0.12, -this.height * 0.12, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+    </script>
+
+    <script>
+        class EnemyProjectile {
+            constructor(x, y, vx, vy, type) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.type = type;
+                this.size = type === 'missile' ? 8 : 10;
+                this.angle = Math.atan2(vy, vx);
+                this.spinAngle = 0;
+                this.isDead = false;
+                this.life = 350;
+            }
+
+            update() {
+                this.spinAngle += 0.25; 
+
+                if (this.type === 'missile') {
+                    const dx = (ufo.x + ufo.width / 2) - this.x;
+                    const dy = (ufo.y + ufo.height / 2) - this.y;
+                    const targetAngle = Math.atan2(dy, dx);
+                    
+                    this.angle += (targetAngle - this.angle) * 0.035;
+                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    this.vx = Math.cos(this.angle) * speed;
+                    this.vy = Math.sin(this.angle) * speed;
+
+                    if (Math.random() < 0.35) {
+                        particles.push(new Particle(
+                            this.x,
+                            this.y,
+                            'rgba(147, 51, 234, 0.4)', 
+                            -this.vx * 0.15 + (Math.random() - 0.5),
+                            -this.vy * 0.15 + (Math.random() - 0.5),
+                            Math.random() * 3.5 + 2,
+                            18
+                        ));
+                    }
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+
+                if (this.life <= 0) this.isDead = true;
+
+                if (this.checkCollision(ufo)) {
+                    this.isDead = true;
+                    damageUFO(this.type === 'missile' ? 18 : 8);
+                }
+            }
+
+            checkCollision(rect) {
+                const cX = Math.max(rect.x, Math.min(this.x, rect.x + rect.width));
+                const cY = Math.max(rect.y, Math.min(this.y, rect.y + rect.height));
+                const distanceX = this.x - cX;
+                const distanceY = this.y - cY;
+                return (distanceX * distanceX + distanceY * distanceY) < (this.size * this.size);
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                if (this.type === 'rusty_can') {
+                    ctx.rotate(this.spinAngle);
+                    ctx.fillStyle = '#ea580c'; 
+                    ctx.fillRect(-5, -7, 10, 14);
+                    
+                    ctx.fillStyle = '#78350f'; 
+                    ctx.fillRect(-5, -3, 10, 3);
+                    ctx.fillStyle = '#94a3b8'; 
+                    ctx.fillRect(-5, -7, 10, 2);
+                    ctx.fillRect(-5, 5, 10, 2);
+                } else if (this.type === 'missile') {
+                    ctx.rotate(this.angle);
+                    ctx.fillStyle = '#dc2626';
+                    ctx.fillRect(-12, -4, 18, 8);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.moveTo(6, -4);
+                    ctx.lineTo(14, 0);
+                    ctx.lineTo(6, 4);
+                    ctx.fill();
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(-14, -6, 2, 2);
+                    ctx.fillRect(-14, 4, 2, 2);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class PlayerProjectile {
+            constructor(x, y, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.size = 6;
+                this.isDead = false;
+                this.life = 120;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+                if (this.life <= 0) this.isDead = true;
+
+                if (Math.random() < 0.4) {
+                    particles.push(new Particle(
+                        this.x,
+                        this.y,
+                        '#06b6d4',
+                        (Math.random() - 0.5) * 1,
+                        (Math.random() - 0.5) * 1,
+                        2,
+                        10
+                    ));
+                }
+
+                // Detección de colisión contra enemigos (Dirigibles y Granjeros)
+                for (let e of enemies) {
+                    const dX = this.x - (e.x + e.width / 2);
+                    const dY = this.y - (e.y + e.height / 2);
+                    const distance = Math.sqrt(dX * dX + dY * dY);
+
+                    if (distance < e.width / 2) {
+                        this.isDead = true;
+                        e.health -= 15; 
+
+                        for (let i = 0; i < 8; i++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            particles.push(new Particle(
+                                this.x,
+                                this.y,
+                                '#22d3ee',
+                                Math.cos(angle) * 3,
+                                Math.sin(angle) * 3,
+                                2,
+                                15
+                            ));
+                        }
+
+                        if (e.health <= 0) {
+                            e.isDead = true;
+                            score += e instanceof Dirigible ? 1000 : 400;
+                            updateHUD();
+                            AudioFX.playExplosion();
+
+                            floatingTexts.push(new FloatingText(
+                                e.x + e.width / 2, 
+                                e.y, 
+                                e instanceof Dirigible ? "+1000 Pts" : "+400 Pts", 
+                                '#06b6d4', 
+                                11
+                            ));
+
+                            for (let i = 0; i < 15; i++) {
+                                const angle = Math.random() * Math.PI * 2;
+                                particles.push(new Particle(
+                                    e.x + e.width / 2,
+                                    e.y + e.height / 2,
+                                    Math.random() > 0.5 ? '#f97316' : '#78716c',
+                                    Math.cos(angle) * (Math.random() * 5 + 2),
+                                    Math.sin(angle) * (Math.random() * 5 + 2),
+                                    Math.random() * 4 + 2,
+                                    30
+                                ));
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                // Mecánica de Intercepción: Destrucción de misiles/latas en el aire
+                if (!this.isDead) {
+                    for (let ep of enemyProjectiles) {
+                        if (ep.isDead) continue;
+                        
+                        const dX = this.x - ep.x;
+                        const dY = this.y - ep.y;
+                        const distance = Math.sqrt(dX * dX + dY * dY);
+                        const collisionDist = this.size + ep.size;
+
+                        if (distance < collisionDist) {
+                            this.isDead = true;
+                            ep.isDead = true;
+                            score += 50; 
+                            updateHUD();
+                            AudioFX.playHit();
+
+                            for (let i = 0; i < 8; i++) {
+                                const angle = Math.random() * Math.PI * 2;
+                                particles.push(new Particle(
+                                    this.x,
+                                    this.y,
+                                    '#fbbf24', 
+                                    Math.cos(angle) * (Math.random() * 3 + 1),
+                                    Math.sin(angle) * (Math.random() * 3 + 1),
+                                    2,
+                                    15
+                                ));
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                const grad = ctx.createRadialGradient(0, 0, 1, 0, 0, this.size);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.4, '#22d3ee');
+                grad.addColorStop(1, 'rgba(6, 182, 212, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+    </script>
+
+    <script>
+        function getUfoStats() {
+            let finalSpeed = ufoBaseStats.speed;
+            let finalMaxShield = ufoBaseStats.maxShield;
+            let finalBeamWidth = ufoBaseStats.beamWidth;
+
+            if (activeAIBooster.type === 'speed') {
+                finalSpeed *= activeAIBooster.multiplier;
+            } else if (activeAIBooster.type === 'shield') {
+                finalMaxShield += 50; 
+            } else if (activeAIBooster.type === 'beam') {
+                finalBeamWidth += 25;
+            }
+
+            return {
+                speed: finalSpeed,
+                beamSpeed: ufoBaseStats.beamSpeed,
+                maxShield: finalMaxShield,
+                beamWidth: finalBeamWidth
+            };
+        }
+
+        function damageUFO(amount) {
+            if (ufo.shieldTimer > 0) return;
+
+            ufo.shield -= amount;
+            AudioFX.playHit();
+
+            for (let i = 0; i < 15; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                particles.push(new Particle(
+                    ufo.x + ufo.width / 2,
+                    ufo.y + ufo.height / 2,
+                    '#60a5fa',
+                    Math.cos(angle) * (Math.random() * 5 + 2),
+                    Math.sin(angle) * (Math.random() * 5 + 2),
+                    Math.random() * 2.5 + 1,
+                    20
+                ));
+            }
+
+            canvas.classList.add('animate-shake');
+            setTimeout(() => canvas.classList.remove('animate-shake'), 400);
+
+            if (ufo.shield <= 0) {
+                ufo.shield = 0;
+                triggerGameOver();
+            }
+            updateHUD();
+        }
+
+        function drawBackground(w, h) {
+            if (assets.fondo.loaded) {
+                const bgX1 = -(bgScrollX * 0.3) % w;
+                ctx.drawImage(assets.fondo.img, bgX1, 0, w, h);
+                if (bgX1 < 0) {
+                    ctx.drawImage(assets.fondo.img, bgX1 + w, 0, w, h);
+                }
+            } else {
+                const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+                skyGrad.addColorStop(0, '#020205');
+                skyGrad.addColorStop(0.4, '#090915');
+                skyGrad.addColorStop(0.7, '#1e112a');
+                skyGrad.addColorStop(1, '#3b1c55');
+                ctx.fillStyle = skyGrad;
+                ctx.fillRect(0, 0, w, h);
+                
+                ctx.fillStyle = '#160924';
+                ctx.beginPath();
+                const mountainScroll = (bgScrollX * 0.1) % w;
+                ctx.moveTo(0, h);
+                for (let x = 0; x <= w + 40; x += 40) {
+                    const worldX = x + mountainScroll;
+                    const mY = h * 0.65 + Math.sin(worldX * 0.005) * 60 + Math.cos(worldX * 0.012) * 20;
+                    ctx.lineTo(x, mY);
+                }
+                ctx.lineTo(w, h);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                const hillScroll = (bgScrollX * 0.25) % w;
+                ctx.moveTo(0, h);
+                for (let x = 0; x <= w + 40; x += 40) {
+                    const worldX = x + hillScroll;
+                    const hY = h * 0.8 + Math.sin(worldX * 0.008) * 40;
+                    ctx.lineTo(x, hY);
+                }
+                ctx.lineTo(w, h);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.fillStyle = '#090d16';
+                ctx.fillRect(0, h - 35, w, 35);
+            }
+        }
+
+        function drawTractorBeam(w, h) {
+            const stats = getUfoStats();
+            const ufoCenterX = ufo.x + ufo.width / 2;
+            const startY = ufo.y + ufo.height - 15;
+            const endY = h - 35;
+            
+            ctx.save();
+            
+            const beamGrad = ctx.createLinearGradient(ufoCenterX, startY, ufoCenterX, endY);
+            beamGrad.addColorStop(0, 'rgba(236, 72, 153, 0.8)');
+            beamGrad.addColorStop(0.5, 'rgba(168, 85, 247, 0.45)');
+            beamGrad.addColorStop(1, 'rgba(59, 130, 246, 0.15)');
+            
+            ctx.fillStyle = beamGrad;
+            
+            const pulse = Math.sin(ufo.beamPulse) * 8;
+            const topWidth = stats.beamWidth + pulse;
+            const bottomWidth = stats.beamWidth * 1.85 + pulse;
+            
+            ctx.beginPath();
+            ctx.moveTo(ufoCenterX - topWidth / 2, startY);
+            ctx.lineTo(ufoCenterX + topWidth / 2, startY);
+            ctx.lineTo(ufoCenterX + bottomWidth / 2, endY);
+            ctx.lineTo(ufoCenterX - bottomWidth / 2, endY);
+            ctx.closePath();
+            ctx.fill();
+            
+            const coreGrad = ctx.createLinearGradient(ufoCenterX, startY, ufoCenterX, endY);
+            coreGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+            coreGrad.addColorStop(0.4, 'rgba(236, 72, 153, 0.4)');
+            coreGrad.addColorStop(1, 'rgba(236, 72, 153, 0)');
+            
+            ctx.fillStyle = coreGrad;
+            ctx.beginPath();
+            ctx.moveTo(ufoCenterX - topWidth / 4, startY);
+            ctx.lineTo(ufoCenterX + topWidth / 4, startY);
+            ctx.lineTo(ufoCenterX + bottomWidth / 4, endY);
+            ctx.lineTo(ufoCenterX - bottomWidth / 4, endY);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        function drawUFO() {
+            ctx.save();
+            ctx.translate(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2);
+            ctx.rotate(ufo.tilt);
+            
+            if (assets.pulpo.loaded) {
+                const frameWidth = 120;
+                const frameHeight = 110;
+                const row = ufo.beamActive ? 2 : (Math.abs(ufo.vx) > 0.5 ? 1 : 0);
+                const col = Math.floor(gameFrame / 6) % 6;
+                ctx.drawImage(
+                    assets.pulpo.img, 
+                    col * frameWidth, row * frameHeight, frameWidth, frameHeight, 
+                    -ufo.width / 2, -ufo.height / 2, ufo.width, ufo.height
+                );
+            } else {
+                const engineGlow = ctx.createRadialGradient(0, ufo.height * 0.25, 2, 0, ufo.height * 0.25, 25);
+                engineGlow.addColorStop(0, '#f472b6');
+                engineGlow.addColorStop(1, 'rgba(168, 85, 247, 0)');
+                ctx.fillStyle = engineGlow;
+                ctx.beginPath();
+                ctx.ellipse(0, ufo.height * 0.22, 28, 12, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#4b5563';
+                ctx.strokeStyle = '#1f2937';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.ellipse(0, ufo.height * 0.12, ufo.width * 0.48, ufo.height * 0.22, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.fillStyle = '#6b7280';
+                ctx.beginPath();
+                ctx.ellipse(0, ufo.height * 0.12, ufo.width * 0.48, ufo.height * 0.08, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.fillStyle = Math.sin(gameFrame * 0.1) > 0 ? '#fbbf24' : '#f59e0b';
+                for (let i = -4; i <= 4; i++) {
+                    ctx.beginPath();
+                    ctx.arc(i * (ufo.width * 0.09), ufo.height * 0.12, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.save();
+                ctx.translate(0, -ufo.height * 0.12);
+                
+                ctx.fillStyle = '#a855f7';
+                ctx.strokeStyle = '#6b21a8';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, -6, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.fillStyle = '#fbbf24';
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(0, 5, 8, 0, Math.PI);
+                ctx.stroke();
+                ctx.fillRect(-2, 7, 4, 4);
+                
+                ctx.strokeStyle = '#a855f7';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                for (let i = 0; i < 4; i++) {
+                    const side = i < 2 ? -1 : 1;
+                    const offset = (i % 2) * 5;
+                    ctx.beginPath();
+                    ctx.moveTo(side * 8, 2);
+                    ctx.quadraticCurveTo(
+                        side * (18 + offset), 
+                        -3 + Math.sin(gameFrame * 0.15 + i) * 6, 
+                        side * (24 + offset), 
+                        5 + Math.sin(gameFrame * 0.15 + i) * 4
+                    );
+                    ctx.stroke();
+                }
+                
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(-6, -11, 7, 0, Math.PI * 2);
+                ctx.arc(6, -11, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1.8;
+                ctx.translate(-6, -11);
+                ctx.rotate(ufo.eyeSpiralAngle);
+                ctx.beginPath();
+                for (let a = 0; a < Math.PI * 3; a += 0.15) {
+                    const r = a * 0.45;
+                    ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+                }
+                ctx.stroke();
+                ctx.restore();
+                
+                ctx.save();
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1.8;
+                ctx.translate(6, -11);
+                ctx.rotate(-ufo.eyeSpiralAngle * 1.1);
+                ctx.beginPath();
+                for (let a = 0; a < Math.PI * 3; a += 0.15) {
+                    const r = a * 0.45;
+                    ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+                }
+                ctx.stroke();
+                ctx.restore();
+                
+                ctx.fillStyle = '#f43f5e';
+                ctx.beginPath();
+                ctx.arc(0, 1, 4.5, 0, Math.PI);
+                ctx.fill();
+                
+                ctx.restore();
+                
+                ctx.fillStyle = 'rgba(147, 197, 253, 0.28)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(0, -ufo.height * 0.1, ufo.width * 0.35, Math.PI, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.beginPath();
+                ctx.ellipse(-ufo.width * 0.15, -ufo.height * 0.3, 10, 4, -0.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Renderizado de burbuja de escudo activo (Cada 5 vacas)
+            if (ufo.shieldTimer > 0) {
+                ctx.save();
+                ctx.translate(0, -ufo.height * 0.05);
+                const shieldRad = ufo.width * 0.72;
+                
+                const bubbleGrad = ctx.createRadialGradient(0, 0, shieldRad - 15, 0, 0, shieldRad + 5);
+                bubbleGrad.addColorStop(0, 'rgba(6, 182, 212, 0)');
+                bubbleGrad.addColorStop(0.8, 'rgba(6, 182, 212, 0.35)');
+                bubbleGrad.addColorStop(1, 'rgba(236, 72, 153, 0.85)');
+
+                ctx.fillStyle = bubbleGrad;
+                ctx.strokeStyle = '#22d3ee';
+                ctx.lineWidth = 2 + Math.sin(gameFrame * 0.2) * 1.5;
+                
+                ctx.beginPath();
+                ctx.arc(0, 0, shieldRad, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+            
+            ctx.restore();
+        }
+
+        function render() {
+            const w = canvas.parentElement.clientWidth;
+            const h = canvas.parentElement.clientHeight;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawBackground(w, h);
+
+            backgroundStars.forEach(star => {
+                ctx.save();
+                ctx.globalAlpha = star.opacity;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(star.x - (bgScrollX * 0.15) % w, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                
+                star.opacity += star.pulseSpeed;
+                if (star.opacity > 1 || star.opacity < 0.2) {
+                    star.pulseSpeed *= -1;
+                }
+            });
+
+            clouds.forEach(c => c.draw());
+
+            staticScenery.forEach(item => {
+                ctx.save();
+                ctx.translate(-(bgScrollX * 0.45) % w, 0);
+                item.draw();
+                ctx.restore();
+            });
+
+            if (ufo.beamActive && gameState === 'playing') {
+                drawTractorBeam(w, h);
+            }
+
+            cows.forEach(cow => cow.draw());
+            enemies.forEach(e => e.draw());
+            enemyProjectiles.forEach(p => p.draw());
+            playerProjectiles.forEach(p => p.draw());
+            particles.forEach(p => p.draw());
+            debris.forEach(d => d.draw());
+
+            if (ufo.shield > 0 && gameState === 'playing') {
+                drawUFO();
+            }
+
+            floatingTexts.forEach(t => t.draw());
+        }
+
+        function gameLoop() {
+            if (gameState === 'playing') {
+                update();
+                render();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+    </script>
+
+    <script>
+        function update() {
+            gameFrame++;
+            timeElapsed += 0.016;
+            difficultyMultiplier = 1 + Math.floor(timeElapsed / 35) * 0.25;
+
+            const containerWidth = canvas.parentElement.clientWidth;
+            const containerHeight = canvas.parentElement.clientHeight;
+            const stats = getUfoStats();
+
+            if (ufo.shieldTimer > 0) {
+                ufo.shieldTimer--;
+                if (Math.random() < 0.25) {
+                    const angle = Math.random() * Math.PI * 2;
+                    particles.push(new Particle(
+                        ufo.x + ufo.width / 2 + Math.cos(angle) * (ufo.width * 0.7),
+                        ufo.y + ufo.height / 2 + Math.sin(angle) * (ufo.height * 0.7),
+                        '#06b6d4',
+                        (Math.random() - 0.5) * 1,
+                        (Math.random() - 0.5) * 1,
+                        2,
+                        15
+                    ));
+                }
+            }
+
+            bgScrollX += ufo.vx * 0.15;
+            if (bgScrollX < 0) bgScrollX += 100000;
+
+            let dx = 0;
+            let dy = 0;
+
+            if (keys['ArrowLeft'] || keys['KeyA']) dx = -1;
+            if (keys['ArrowRight'] || keys['KeyD']) dx = 1;
+            if (keys['ArrowUp'] || keys['KeyW']) dy = -1;
+            if (keys['ArrowDown'] || keys['KeyS']) dy = 1;
+
+            if (touchData.active) {
+                dx = joystickVector.x;
+                dy = joystickVector.y;
+            }
+
+            const length = Math.sqrt(dx * dx + dy * dy);
+            if (length > 0) {
+                ufo.vx = (dx / length) * stats.speed;
+                ufo.vy = (dy / length) * stats.speed;
+                ufo.tilt += (dx * 0.22 - ufo.tilt) * 0.1;
+            } else {
+                ufo.vx *= 0.88;
+                ufo.vy *= 0.88;
+                ufo.tilt += (0 - ufo.tilt) * 0.1; 
+            }
+
+            ufo.x += ufo.vx;
+            ufo.y += ufo.vy;
+
+            if (ufo.x < 10) ufo.x = 10;
+            if (ufo.x > containerWidth - ufo.width - 10) ufo.x = containerWidth - ufo.width - 10;
+            if (ufo.y < 20) ufo.y = 20;
+            if (ufo.y > containerHeight - 160) ufo.y = containerHeight - 160;
+
+            ufo.eyeSpiralAngle += 0.08;
+
+            ufo.beamActive = keys['Space'] || touchData.actionActive || false;
+            if (ufo.beamActive) {
+                ufo.beamPulse += 0.2;
+                if (Math.random() < 0.18) {
+                    AudioFX.playBeam(0.09);
+                }
+            } else {
+                ufo.beamPulse = 0;
+            }
+
+            if (ufo.shootCooldown > 0) ufo.shootCooldown--;
+
+            const isShooting = keys['ShiftLeft'] || keys['ShiftRight'] || keys['KeyC'] || keys['KeyX'] || touchData.shootActive || false;
+            if (isShooting && ufo.shootCooldown === 0) {
+                firePlasma();
+                ufo.shootCooldown = 18; 
+            }
+
+            if (Math.abs(ufo.vx) > 0.5 || Math.abs(ufo.vy) > 0.5) {
+                if (Math.random() < 0.6) {
+                    const backAngle = Math.atan2(ufo.vy, ufo.vx) + Math.PI;
+                    particles.push(new Particle(
+                        ufo.x + ufo.width / 2 + (Math.random() * 20 - 10),
+                        ufo.y + ufo.height - 15,
+                        Math.random() > 0.4 ? '#d946ef' : '#a21caf',
+                        Math.cos(backAngle) * (Math.random() * 4 + 2) + (Math.random() - 0.5),
+                        Math.sin(backAngle) * (Math.random() * 4 + 2) + 2, 
+                        Math.random() * 3 + 2,
+                        25
+                    ));
+                }
+            }
+
+            staticScenery.forEach(item => item.update());
+
+            spawnTimers.cloud--;
+            if (spawnTimers.cloud <= 0) {
+                clouds.push(new Cloud());
+                spawnTimers.cloud = Math.random() * 250 + 150;
+            }
+            clouds.forEach(c => c.update());
+            clouds = clouds.filter(c => c.x > -200);
+
+            spawnTimers.cow--;
+            if (spawnTimers.cow <= 0 && cows.length < 8) {
+                cows.push(new Cow());
+                spawnTimers.cow = Math.random() * 150 + 90;
+            }
+
+            spawnTimers.farmer--;
+            if (spawnTimers.farmer <= 0 && enemies.filter(e => e instanceof Farmer).length < 3) {
+                enemies.push(new Farmer());
+                spawnTimers.farmer = (Math.random() * 190 + 120) / difficultyMultiplier;
+            }
+
+            spawnTimers.military--;
+            if (spawnTimers.military <= 0 && enemies.filter(e => e instanceof Dirigible).length < 2) {
+                triggerWaveAlert();
+                enemies.push(new Dirigible());
+                spawnTimers.military = (Math.random() * 350 + 250) / difficultyMultiplier;
+            }
+
+            enemies.forEach(e => e.update());
+            enemies = enemies.filter(e => !e.isDead);
+
+            enemyProjectiles.forEach(p => p.update());
+            enemyProjectiles = enemyProjectiles.filter(p => !p.isDead);
+
+            playerProjectiles.forEach(p => p.update());
+            playerProjectiles = playerProjectiles.filter(p => !p.isDead);
+
+            floatingTexts.forEach(t => t.update());
+            floatingTexts = floatingTexts.filter(t => t.life > 0);
+
+            cows.forEach(cow => {
+                if (ufo.beamActive && cow.state !== 'safe') {
+                    const ufoCenterX = ufo.x + ufo.width / 2;
+                    const cowCenterX = cow.x + cow.width / 2;
+                    const beamHalfWidthAtGround = stats.beamWidth * 1.55;
+                    
+                    const dx = Math.abs(cowCenterX - ufoCenterX);
+                    const beamLimit = stats.beamWidth + (cow.y - ufo.y) * (beamHalfWidthAtGround - stats.beamWidth) / (containerHeight - ufo.y);
+
+                    if (dx < beamLimit && cow.y > ufo.y + ufo.height - 15) {
+                        cow.state = 'beamed';
+                    } else if (cow.state === 'beamed') {
+                        cow.state = 'walk';
+                    }
+                } else if (cow.state === 'beamed') {
+                    cow.state = 'walk';
+                }
+
+                if (cow.state === 'walk' && cow.y < containerHeight - 55) {
+                    cow.y += 3.5;
+                    if (cow.y > containerHeight - 55) cow.y = containerHeight - 55;
+                }
+
+                cow.update();
+            });
+
+            cows = cows.filter(cow => cow.state !== 'safe');
+
+            particles.forEach(p => p.update());
+            particles = particles.filter(p => p.life > 0);
+
+            debris.forEach(d => d.update());
+            debris = debris.filter(d => d.life > 0);
+        }
+
+        function firePlasma() {
+            AudioFX.playLaser();
+            const launchX = ufo.x + ufo.width / 2;
+            const launchY = ufo.y + ufo.height * 0.7;
+
+            playerProjectiles.push(new PlayerProjectile(launchX - 10, launchY, -1.5, 6));
+            playerProjectiles.push(new PlayerProjectile(launchX + 10, launchY, 1.5, 6));
+        }
+    </script>
+
+    <script>
+        async function fetchGemini(userQuery, systemPrompt, responseSchema = null) {
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }]
+            };
+            
+            if (systemPrompt) {
+                payload.systemInstruction = {
+                    parts: [{ text: systemPrompt }]
+                };
+            }
+            
+            if (responseSchema) {
+                payload.generationConfig = {
+                    responseMimeType: "application/json",
+                    responseSchema: responseSchema
+                };
+            }
+            
+            let delay = 1000;
+            for (let i = 0; i < 3; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        return await response.json();
+                    }
+                } catch (e) {
+                    console.warn("Reintentando conexión Gemini...", e);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+            }
+            throw new Error("Conexión con Gemini fallida.");
+        }
+
+        const aiSendBtn = document.getElementById('ai-send-btn');
+        const aiChatInput = document.getElementById('ai-chat-input');
+        const aiChatOutput = document.getElementById('ai-chat-output');
+        const aiBtnIcon = document.getElementById('ai-btn-icon');
+        const aiBoosterStatus = document.getElementById('ai-booster-status');
+
+        aiSendBtn.addEventListener('click', handleAIChat);
+        aiChatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleAIChat();
+        });
+
+        async function handleAIChat() {
+            const message = aiChatInput.value.trim();
+            if (!message) return;
+
+            aiChatInput.value = '';
+            aiChatInput.disabled = true;
+            aiSendBtn.disabled = true;
+            aiBtnIcon.className = "ph-bold ph-spinner animate-spin";
+
+            const userMsgEl = document.createElement('p');
+            userMsgEl.className = "text-purple-300 pl-2 border-l border-purple-500/30";
+            userMsgEl.innerHTML = `<span class="text-yellow-400">Tú:</span> "${message}"`;
+            aiChatOutput.appendChild(userMsgEl);
+            aiChatOutput.scrollTop = aiChatOutput.scrollHeight;
+
+            const systemPrompt = `Eres Oktopus, el pulpo espacial insolente, sarcástico y codicioso de 'Invasión Bovina' que usa cadenas de oro. Hablas en español mexicano callejero y divertido de arcade (usando 'wey', 'chingón', etc.). El jugador está tratando de negociar contigo un booster virtual de juego gratuito. Evalúa su originalidad, su humor o si te adula bien. Tienes 3 opciones de booster para otorgar: 'speed' (Hiper-Velocidad x1.5), 'shield' (Escudos Sobrecargados +50%), 'beam' (Haz Ampliado +25px), o 'none' (Rechazar con un buen roast). Devuelve tu respuesta exclusivamente bajo el esquema estructurado JSON provisto.`;
+
+            const schema = {
+                type: "OBJECT",
+                properties: {
+                    reply: { type: "STRING", description: "Tu respuesta hablada como Oktopus. Sarcástica, cómica, máximo 2 líneas." },
+                    grantBooster: { type: "STRING", enum: ["speed", "shield", "beam", "none"], description: "El tipo de booster otorgado según la negociación." },
+                    boosterText: { type: "STRING", description: "Un texto corto describiendo el booster otorgado o por qué fue rechazado." }
+                },
+                required: ["reply", "grantBooster", "boosterText"]
+            };
+
+            try {
+                const response = await fetchGemini(message, systemPrompt, schema);
+                const candidate = response.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (candidate) {
+                    const parsed = JSON.parse(candidate);
+                    
+                    const alienMsgEl = document.createElement('p');
+                    alienMsgEl.className = "text-purple-100 font-semibold";
+                    alienMsgEl.innerHTML = `<span class="text-pink-400">🛸 Oktopus:</span> "${parsed.reply}"`;
+                    aiChatOutput.appendChild(alienMsgEl);
+
+                    if (parsed.grantBooster !== 'none') {
+                        activeAIBooster.type = parsed.grantBooster;
+                        activeAIBooster.multiplier = parsed.grantBooster === 'speed' ? 1.5 : 1.0;
+                        activeAIBooster.description = parsed.boosterText;
+                        activeAIBooster.applied = true;
+
+                        aiBoosterStatus.textContent = `🚀 BUFF ACTIVO: ${parsed.boosterText.toUpperCase()}`;
+                        aiBoosterStatus.classList.remove('hidden');
+                        document.getElementById('ai-booster-hud').classList.remove('hidden');
+                        AudioFX.playUpgrade();
+                    } else {
+                        aiBoosterStatus.classList.add('hidden');
+                    }
+                }
+            } catch (err) {
+                console.error("Error al procesar IA:", err);
+                const errorEl = document.createElement('p');
+                errorEl.className = "text-red-400 text-[10px]";
+                errorEl.textContent = "[Error de conexión con la órbita alienígena]";
+                aiChatOutput.appendChild(errorEl);
+            }
+
+            aiChatOutput.scrollTop = aiChatOutput.scrollHeight;
+            aiChatInput.disabled = false;
+            aiSendBtn.disabled = false;
+            aiBtnIcon.className = "ph-bold ph-paper-plane-right";
+        }
+
+        async function fetchAIEvaluation(finalScore, finalCows) {
+            const outputEl = document.getElementById('ai-evaluation-output');
+            outputEl.innerHTML = '<p class="text-red-400 animate-pulse">Oktopus está redactando tu informe militar...</p>';
+
+            const query = `El jugador ha muerto. Logró un puntaje de ${finalScore} puntos y abdujo un total de ${finalCows} vacas. El booster de IA al inicio fue de tipo: ${activeAIBooster.type}.`;
+            const systemPrompt = `Eres Oktopus, el pulpo espacial de 'Invasión Bovina'. Redacta una evaluación de desempeño militar para el jugador en base a su puntaje y vacas abducidas. Sé extremadamente cómico, insolente, burlón y usa argot mexicano retro de maquinitas. Otórgale un Rango Galáctico absurdo (ej. 'Limpiador de Establos Intergaláctico', 'Gran Quesero de la Galaxia'). Mantén la respuesta en 1 párrafo corto (máximo 4 líneas en total).`;
+
+            try {
+                const response = await fetchGemini(query, systemPrompt);
+                const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                    outputEl.innerHTML = `<p class="text-red-400 font-arcade text-[9px] mb-1">RANGO DE OKTOPUS:</p><p class="text-slate-200">${text}</p>`;
+                } else {
+                    outputEl.innerHTML = '<p class="text-slate-400">"Estuviste tan culero que no vale la pena ni evaluarte, wey." - Oktopus</p>';
+                }
+            } catch (e) {
+                outputEl.innerHTML = '<p class="text-red-400">[Transmisor estropeado por interferencia de órbita]</p>';
+            }
+        }
+    </script>
+
+    <script>
+        const startMenu = document.getElementById('start-menu');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const restartGameBtn = document.getElementById('restart-game-btn');
+        const goToMenuBtn = document.getElementById('go-to-menu-btn');
+        const waveAlert = document.getElementById('wave-alert');
+
+        const nicknameInput = document.getElementById('player-nickname-input');
+        const submitScoreBtn = document.getElementById('submit-score-btn');
+        const submitScoreBox = document.getElementById('submit-score-box');
+
+        const tabAIBtn = document.getElementById('tab-ai-btn');
+        const tabRankBtn = document.getElementById('tab-rank-btn');
+        const tabContentAI = document.getElementById('tab-content-ai');
+        const tabContentRank = document.getElementById('tab-content-rank');
+
+        tabAIBtn.addEventListener('click', () => {
+            tabAIBtn.classList.add('active');
+            tabRankBtn.classList.remove('active');
+            tabContentAI.classList.remove('hidden');
+            tabContentRank.classList.add('hidden');
+        });
+
+        tabRankBtn.addEventListener('click', () => {
+            tabRankBtn.classList.add('active');
+            tabAIBtn.classList.remove('active');
+            tabContentRank.classList.remove('hidden');
+            tabContentAI.classList.add('hidden');
+            if (window.Leaderboard) window.Leaderboard.reload();
+        });
+
+        startGameBtn.addEventListener('click', startGame);
+        restartGameBtn.addEventListener('click', restartGame);
+        goToMenuBtn.addEventListener('click', showMainMenu);
+
+        submitScoreBtn.addEventListener('click', async () => {
+            const nick = nicknameInput.value.trim().toUpperCase() || "ANÓNIMO";
+            submitScoreBtn.disabled = true;
+            submitScoreBtn.textContent = "ENVIANDO...";
+
+            if (window.Leaderboard) {
+                await window.Leaderboard.submit(nick, score, cowsAbducted, "CONEXIÓN LOCAL");
+            }
+            
+            submitScoreBox.innerHTML = `<p class="text-emerald-400 font-arcade text-[9px] py-2 text-center animate-pulse">✓ ¡RÉCORD REGISTRADO EN EL TOP 5!</p>`;
+        });
+
+        function updateHUD() {
+            document.getElementById('score-val').textContent = String(score).padStart(5, '0');
+            document.getElementById('cow-count').textContent = cowsAbducted;
+
+            const bars = '█'.repeat(shieldProgress) + '░'.repeat(5 - shieldProgress);
+            document.getElementById('shield-progress-hud').textContent = `[${bars}]`;
+
+            const stats = getUfoStats();
+            const pct = Math.max(0, (ufo.shield / stats.maxShield) * 100);
+            const shieldBar = document.getElementById('shield-bar');
+            shieldBar.style.width = `${pct}%`;
+
+            if (pct < 30) {
+                shieldBar.className = "bg-gradient-to-r from-red-600 via-red-500 to-orange-500 h-full rounded-full transition-all duration-100 shadow-lg";
+            } else if (pct < 65) {
+                shieldBar.className = "bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-400 h-full rounded-full transition-all duration-100 shadow-lg";
+            } else {
+                shieldBar.className = "bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 h-full rounded-full transition-all duration-100 shadow-lg";
+            }
+        }
+
+        function triggerWaveAlert() {
+            waveAlert.style.opacity = '1';
+            waveAlert.style.transform = 'scale(1)';
+            AudioFX.playHit();
+            setTimeout(() => {
+                waveAlert.style.opacity = '0';
+                waveAlert.style.transform = 'scale(0.75)';
+            }, 3000);
+        }
+
+        function startGame() {
+            AudioFX.init();
+            startMenu.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            
+            score = 0;
+            cowsAbducted = 0;
+            shieldProgress = 0;
+            timeElapsed = 0;
+            difficultyMultiplier = 1;
+            ufo.shieldTimer = 0;
+
+            resetEntities();
+            updateHUD();
+
+            gameState = 'playing';
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resetEntities() {
+            const containerWidth = canvas.parentElement.clientWidth;
+            const containerHeight = canvas.parentElement.clientHeight;
+
+            ufo.x = containerWidth / 2 - ufo.width / 2;
+            ufo.y = 120;
+            ufo.vx = 0;
+            ufo.vy = 0;
+            ufo.tilt = 0;
+            bgScrollX = 0;
+            
+            const stats = getUfoStats();
+            ufo.shield = stats.maxShield;
+
+            cows = [];
+            enemies = [];
+            enemyProjectiles = [];
+            playerProjectiles = [];
+            particles = [];
+            clouds = [];
+            debris = [];
+            floatingTexts = [];
+
+            for (let i = 0; i < 4; i++) {
+                cows.push(new Cow());
+            }
+
+            spawnTimers.cow = 100;
+            spawnTimers.farmer = 120;
+            spawnTimers.military = 400;
+            spawnTimers.cloud = 10;
+
+            createStars();
+            generateFarmScenery();
+        }
+
+        function triggerGameOver() {
+            gameState = 'gameover';
+            AudioFX.playExplosion();
+
+            const centerX = ufo.x + ufo.width / 2;
+            const centerY = ufo.y + ufo.height / 2;
+
+            for (let i = 0; i < 12; i++) {
+                const vx = (Math.random() - 0.5) * 8;
+                const vy = (Math.random() - 0.7) * 9;
+                debris.push(new Debris(
+                    centerX + (Math.random() * 30 - 15),
+                    centerY + (Math.random() * 20 - 10),
+                    vx,
+                    vy,
+                    Math.random() * 14 + 8
+                ));
+            }
+
+            for (let i = 0; i < 35; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                particles.push(new Particle(
+                    centerX,
+                    centerY,
+                    i % 2 === 0 ? '#ea580c' : '#f97316', 
+                    Math.cos(angle) * (Math.random() * 7 + 4),
+                    Math.sin(angle) * (Math.random() * 7 + 4),
+                    Math.random() * 6 + 3,
+                    40
+                ));
+            }
+
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(
+                    centerX + (Math.random() * 20 - 10),
+                    centerY + (Math.random() * 20 - 10),
+                    '#374151',
+                    (Math.random() - 0.5) * 3,
+                    -Math.random() * 2 - 1,
+                    Math.random() * 8 + 4,
+                    55
+                ));
+            }
+
+            document.getElementById('final-score-val').textContent = score;
+            document.getElementById('final-cows-val').textContent = cowsAbducted;
+            gameOverScreen.classList.remove('hidden');
+
+            nicknameInput.value = '';
+            submitScoreBtn.disabled = false;
+            submitScoreBtn.textContent = "REGISTRAR";
+            submitScoreBox.innerHTML = `
+                <p class="font-arcade text-[9px] text-pink-400">¿Guardar récord en el ranking?</p>
+                <div class="flex gap-2">
+                    <input id="player-nickname-input" type="text" maxlength="8" placeholder="PILOTO" class="flex-1 bg-black/60 border border-purple-500/30 rounded-lg px-3 py-1.5 text-xs text-white uppercase focus:outline-none focus:border-pink-500 text-center font-arcade placeholder-purple-700">
+                    <button id="submit-score-btn" class="bg-pink-600 hover:bg-pink-500 text-black font-arcade text-[10px] px-3 py-1.5 rounded-lg transition-all">
+                        REGISTRAR
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('submit-score-btn').addEventListener('click', async () => {
+                const nick = document.getElementById('player-nickname-input').value.trim().toUpperCase() || "ANÓNIMO";
+                const btn = document.getElementById('submit-score-btn');
+                btn.disabled = true;
+                btn.textContent = "ENVIANDO...";
+
+                if (window.Leaderboard) {
+                    await window.Leaderboard.submit(nick, score, cowsAbducted, "CONEXIÓN LOCAL");
+                }
+                document.getElementById('submit-score-box').innerHTML = `<p class="text-emerald-400 font-arcade text-[9px] py-2 text-center animate-pulse">✓ ¡RÉCORD REGISTRADO EN EL TOP 5!</p>`;
+            });
+
+            fetchAIEvaluation(score, cowsAbducted);
+
+            activeAIBooster.type = 'none';
+            activeAIBooster.applied = false;
+            document.getElementById('ai-booster-hud').classList.add('hidden');
+            aiBoosterStatus.classList.add('hidden');
+        }
+
+        function restartGame() {
+            startGame();
+        }
+
+        function showMainMenu() {
+            gameOverScreen.classList.add('hidden');
+            startMenu.classList.remove('hidden');
+            gameState = 'menu';
+            resizeCanvas();
+            createStars();
+            resetEntities();
+            render();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Controles Táctiles (Joystick Virtual y Botones proporcionales circulares)
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickHandle = document.getElementById('joystick-handle');
+        const actionBtn = document.getElementById('action-btn');
+        const shootBtn = document.getElementById('shoot-btn');
+
+        if (joystickContainer && joystickHandle) {
+            joystickContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+            joystickContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+            joystickContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
+        }
+
+        if (actionBtn) {
+            actionBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                touchData.actionActive = true;
+            }, { passive: false });
+            actionBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                touchData.actionActive = false;
+            }, { passive: false });
+        }
+
+        if (shootBtn) {
+            shootBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                touchData.shootActive = true;
+            }, { passive: false });
+            shootBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                touchData.shootActive = false;
+            }, { passive: false });
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const rect = joystickContainer.getBoundingClientRect();
+            joystickCenter.x = rect.left + rect.width / 2;
+            joystickCenter.y = rect.top + rect.height / 2;
+            touchData.active = true;
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!touchData.active) return;
+            const touch = e.touches[0];
+            const dx = touch.clientX - joystickCenter.x;
+            const dy = touch.clientY - joystickCenter.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const maxRadius = 40; 
+
+            if (distance === 0) {
+                joystickVector.x = 0;
+                joystickVector.y = 0;
+                joystickHandle.style.transform = `translate(0px, 0px)`;
+            } else {
+                const angle = Math.atan2(dy, dx);
+                const boundedDist = Math.min(distance, maxRadius);
+                joystickVector.x = Math.cos(angle) * (boundedDist / maxRadius);
+                joystickVector.y = Math.sin(angle) * (boundedDist / maxRadius);
+                joystickHandle.style.transform = `translate(${Math.cos(angle) * boundedDist}px, ${Math.sin(angle) * boundedDist}px)`;
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            touchData.active = false;
+            joystickVector.x = 0;
+            joystickVector.y = 0;
+            joystickHandle.style.transform = `translate(0px, 0px)`;
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            createStars();
+        });
+
+        window.onload = function() {
+            resizeCanvas();
+            createStars();
+            resetEntities();
+            updateHUD();
+            render(); 
+        };
+    </script>
+</body>
+</html>
